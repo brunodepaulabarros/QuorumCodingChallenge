@@ -8,8 +8,8 @@ namespace QuorumCodingChallenge.Domain.Entities
 {
     public class Bill
     {
-        public int Id { get; set; }
-        public string Title { get; set; }
-        public int PrimarySponsor { get; set; }
+        public int id { get; set; }
+        public string title { get; set; }
+        public int sponsor_id { get; set; }
     }
 }

@@ -8,9 +8,9 @@ namespace QuorumCodingChallenge.Domain.Entities
 {
     public class VoteResult
     {
-        public int Id { get; set; }
-        public int LegislatorId { get; set; }
-        public int VoteId { get; set; }
-        public int VoteType { get; set; }
+        public int id { get; set; }
+        public int legislator_id { get; set; }
+        public int vote_id { get; set; }
+        public int vote_type { get; set; }
     }
 }

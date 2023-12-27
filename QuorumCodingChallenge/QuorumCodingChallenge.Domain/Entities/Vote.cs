@@ -8,7 +8,7 @@ namespace QuorumCodingChallenge.Domain.Entities
 {
     public class Vote
     {
-        public int Id { get; set; }
-        public int BillId { get; set; }
+        public int id { get; set; }
+        public int bill_id { get; set; }
     }
 }
