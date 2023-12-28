@@ -4,9 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace QuorumCodingChallenge.Domain.DTO
+namespace QuorumCodingChallenge.Domain.Enumerator
 {
-    internal class LegislatorsSupportOpposeCount
+    public enum VoteTypeEnumerator
     {
+        yes = 1, 
+        no = 2
     }
 }

@@ -1,5 +1,8 @@
 using Microsoft.OpenApi.Models;
 using QuorumCodingChallenge.Application.Services.BillServices;
+using QuorumCodingChallenge.Domain.Repository;
+using QuorumCodingChallenge.Infra.Extensions;
+using QuorumCodingChallenge.Infra.Repository;
 
 namespace QuorumCodingChallenge
 {
@@ -24,6 +27,12 @@ namespace QuorumCodingChallenge
 
             #region Denepency Injection
             services.AddScoped<IBillService, BillService>();
+
+            services.AddScoped<IPersonRepository,PersonRepository>();
+            services.AddScoped<IVoteRepository, VoteRepository>();
+            services.AddScoped<IVoteResultRepository, VoteResultRepository>();
+            services.AddScoped<IBillRepository, BillRepository>();
+            services.AddScoped<CsvHelperExtension, CsvHelperExtension>();
             #endregion
         }
 

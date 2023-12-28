@@ -1,104 +1,84 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
-using QuorumCodingChallenge.Domain.Entities;
-using System.Collections.Generic;
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
+﻿using QuorumCodingChallenge.Domain.DTO;
+using QuorumCodingChallenge.Domain.Enumerator;
+using QuorumCodingChallenge.Domain.Repository;
 
 namespace QuorumCodingChallenge.Application.Services.BillServices
 {
     public class BillService : IBillService
     {
+        private readonly IBillRepository _billRepository;
+        private readonly IPersonRepository _personRepository;
+        private readonly IVoteRepository _voteRepository;
+        private readonly IVoteResultRepository _voteResultRepository;
+
+        public BillService(IBillRepository billRepository,
+            IPersonRepository personRepository,
+            IVoteRepository voteRepository,
+            IVoteResultRepository voteResultRepository)
+        {
+            _billRepository = billRepository;
+            _personRepository = personRepository;
+            _voteRepository = voteRepository;
+            _voteResultRepository = voteResultRepository;
+        }
+
         public Boolean Result()
         {
-            var legislators = ReadCsv<Person>("legislators.csv");
-            var bills = ReadCsv<Bill>("bills.csv");
-            var votes = ReadCsv<Vote>("votes.csv");
-            var voteResults = ReadCsv<VoteResult>("vote_results.csv");
+            var bills = _billRepository.GetAll();
+            var legislators = _personRepository.GetAll();
+            var voteResults = _voteResultRepository.GetAll();
+            var votes = _voteRepository.GetAll();
 
+            var countLegislatorSupportOpposer = new List<LegislatorsSupportOpposeCountDTO>();
 
             foreach (var legislator in legislators)
             {
-                var supportBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == 1).Count();
-                var opposeBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == 2).Count();
+                var supportBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.yes).Count();
+                var opposeBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.no).Count();
+                countLegislatorSupportOpposer.Add(new LegislatorsSupportOpposeCountDTO
+                {
+                    id = legislator.id,
+                    name = legislator.name,
+                    num_opposed_bills = opposeBills,
+                    num_supported_bills = supportBills
+                });
             }
 
-            // Process legislators' votes
-            var legislatorVotes = new Dictionary<int, Tuple<int, int>>();
-            foreach (var voteResult in voteResults)
+            _personRepository.SaveLegislator(countLegislatorSupportOpposer);
+
+            var countBillSupportOppose = new List<BillDTO>();
+
+            foreach (var bill in bills)
             {
-                if (!legislatorVotes.ContainsKey(voteResult.legislator_id))
-                    legislatorVotes[voteResult.legislator_id] = Tuple.Create(0, 0);
+                var legislatorsSupportCount = (from b in bills
+                                               join v in votes on b.id equals v.bill_id
+                                               join vs in voteResults on v.id equals vs.vote_id
+                                               join p in legislators on vs.legislator_id equals p.id
+                                               where b.id == bill.id && vs.vote_type == VoteTypeEnumerator.yes
+                                               select p).Count();
 
-                if (voteResult.vote_type == 1)
-                    legislatorVotes[voteResult.legislator_id] = Tuple.Create(
-                        legislatorVotes[voteResult.legislator_id].Item1 + 1,
-                        legislatorVotes[voteResult.legislator_id].Item2
-                    );
-                else if (voteResult.vote_type == 2)
-                    legislatorVotes[voteResult.legislator_id] = Tuple.Create(
-                        legislatorVotes[voteResult.legislator_id].Item1,
-                        legislatorVotes[voteResult.legislator_id].Item2 + 1
-                    );
+                var legislatorsOpposerCount = (from b in bills
+                                               join v in votes on b.id equals v.bill_id
+                                               join vs in voteResults on v.id equals vs.vote_id
+                                               join p in legislators on vs.legislator_id equals p.id
+                                               where b.id == bill.id && vs.vote_type == VoteTypeEnumerator.no
+                                               select p).Count();
+
+                countBillSupportOppose.Add(new BillDTO
+                {
+                    id = bill.id,
+                    title = bill.title,
+                    supporter_count = legislatorsSupportCount,
+                    opposer_count = legislatorsOpposerCount,
+                    primary_sponsor = "Unknown"
+                });
             }
 
-            // Process bills and primary sponsor
-            var billInfo = new Dictionary<int, Tuple<int, int, string>>();
-            foreach (var vote in votes)
-            {
-                if (!billInfo.ContainsKey(vote.bill_id))
-                    billInfo[vote.bill_id] = Tuple.Create(0, 0, "Unknown");
-
-                billInfo[vote.bill_id] = Tuple.Create(
-                    billInfo[vote.bill_id].Item1 + (legislatorVotes.ContainsKey(vote.bill_id) ? legislatorVotes[vote.bill_id].Item1 : 0),
-                    billInfo[vote.bill_id].Item2 + (legislatorVotes.ContainsKey(vote.bill_id) ? legislatorVotes[vote.bill_id].Item2 : 0),
-                    GetPrimarySponsorName(bills, legislators, vote.bill_id)
-                );
-            }
-
-            // Generate Output CSV Files
-            WriteCsv("legislators-support-oppose-count.csv", legislatorVotes.Select(kv => new { Id = kv.Key, Name = GetLegislatorName(legislators, kv.Key), NumSupportedBills = kv.Value.Item1, NumOpposedBills = kv.Value.Item2 }));
-            WriteCsv("bills-result.csv", billInfo.Select(kv => new { Id = kv.Key, Title = GetBillTitle(bills, kv.Key), SupporterCount = kv.Value.Item1, OpposerCount = kv.Value.Item2, PrimarySponsor = kv.Value.Item3 }));
+            _billRepository.SaveBill(countBillSupportOppose);
 
             return true;
         }
 
-        static List<T> ReadCsv<T>(string filePath)
-        {
-            using (var reader = new StreamReader(filePath))
-            using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)))
-            {
-                return csv.GetRecords<T>().ToList();
-            }
-        }
 
-        static void WriteCsv<T>(string filePath, IEnumerable<T> records)
-        {
-            using (var writer = new StreamWriter(filePath))
-            using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
-            {
-                csv.WriteRecords(records);
-            }
-        }
-
-        static string GetLegislatorName(List<Person> legislators, int legislatorId)
-        {
-            var legislator = legislators.FirstOrDefault(l => l.id == legislatorId);
-            return legislator != null ? legislator.name : "Unknown";
-        }
-
-        static string GetBillTitle(List<Bill> bills, int billId)
-        {
-            var bill = bills.FirstOrDefault(b => b.id == billId);
-            return bill != null ? bill.title : "Unknown";
-        }
-
-        static string GetPrimarySponsorName(List<Bill> bills, List<Person> legislators, int billId)
-        {
-            var bill = bills.FirstOrDefault(b => b.id == billId);
-            return bill != null ? GetLegislatorName(legislators, bill.sponsor_id) : "Unknown";
-        }
     }
 }

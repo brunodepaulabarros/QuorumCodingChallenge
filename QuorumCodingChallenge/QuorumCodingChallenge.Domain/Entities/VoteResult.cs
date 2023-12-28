@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QuorumCodingChallenge.Domain.Enumerator;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,6 @@ namespace QuorumCodingChallenge.Domain.Entities
         public int id { get; set; }
         public int legislator_id { get; set; }
         public int vote_id { get; set; }
-        public int vote_type { get; set; }
+        public VoteTypeEnumerator vote_type { get; set; }
     }
 }

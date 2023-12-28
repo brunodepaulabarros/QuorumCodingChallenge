@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\QuorumCodingChallenge.Application\QuorumCodingChallenge.Application.csproj" />
+    <ProjectReference Include="..\QuorumCodingChallenge.Infra\QuorumCodingChallenge.Infra.csproj" />
   </ItemGroup>
 
 </Project>
