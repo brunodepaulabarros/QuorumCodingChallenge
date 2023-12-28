@@ -1,4 +1,5 @@
 ﻿using QuorumCodingChallenge.Domain.DTO;
+using QuorumCodingChallenge.Domain.Entities;
 using QuorumCodingChallenge.Domain.Enumerator;
 using QuorumCodingChallenge.Domain.Repository;
 
@@ -22,63 +23,53 @@ namespace QuorumCodingChallenge.Application.Services.BillServices
             _voteResultRepository = voteResultRepository;
         }
 
-        public Boolean Result()
+        public bool Result()
         {
             var bills = _billRepository.GetAll();
             var legislators = _personRepository.GetAll();
             var voteResults = _voteResultRepository.GetAll();
             var votes = _voteRepository.GetAll();
 
-            var countLegislatorSupportOpposer = new List<LegislatorsSupportOpposeCountDTO>();
+            ProcessLegislators(legislators, voteResults);
 
-            foreach (var legislator in legislators)
-            {
-                var supportBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.yes).Count();
-                var opposeBills = voteResults.Where((r) => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.no).Count();
-                countLegislatorSupportOpposer.Add(new LegislatorsSupportOpposeCountDTO
-                {
-                    id = legislator.id,
-                    name = legislator.name,
-                    num_opposed_bills = opposeBills,
-                    num_supported_bills = supportBills
-                });
-            }
-
-            _personRepository.SaveLegislator(countLegislatorSupportOpposer);
-
-            var countBillSupportOppose = new List<BillDTO>();
-
-            foreach (var bill in bills)
-            {
-                var legislatorsSupportCount = (from b in bills
-                                               join v in votes on b.id equals v.bill_id
-                                               join vs in voteResults on v.id equals vs.vote_id
-                                               join p in legislators on vs.legislator_id equals p.id
-                                               where b.id == bill.id && vs.vote_type == VoteTypeEnumerator.yes
-                                               select p).Count();
-
-                var legislatorsOpposerCount = (from b in bills
-                                               join v in votes on b.id equals v.bill_id
-                                               join vs in voteResults on v.id equals vs.vote_id
-                                               join p in legislators on vs.legislator_id equals p.id
-                                               where b.id == bill.id && vs.vote_type == VoteTypeEnumerator.no
-                                               select p).Count();
-
-                countBillSupportOppose.Add(new BillDTO
-                {
-                    id = bill.id,
-                    title = bill.title,
-                    supporter_count = legislatorsSupportCount,
-                    opposer_count = legislatorsOpposerCount,
-                    primary_sponsor = "Unknown"
-                });
-            }
-
-            _billRepository.SaveBill(countBillSupportOppose);
+            ProcessBillsAsync(bills, votes, voteResults, legislators);
 
             return true;
         }
 
+        private void ProcessLegislators(IEnumerable<Person> legislators, IEnumerable<VoteResult> voteResults)
+        {
+            var countLegislatorSupportOpposer = legislators.Select(legislator => new LegislatorsSupportOpposeCountDTO
+            {
+                id = legislator.id,
+                name = legislator.name,
+                num_opposed_bills = voteResults.Count(r => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.no),
+                num_supported_bills = voteResults.Count(r => r.legislator_id == legislator.id && r.vote_type == VoteTypeEnumerator.yes)
+            }).ToList();
 
+            _personRepository.SaveLegislator(countLegislatorSupportOpposer);
+        }
+
+        private void ProcessBillsAsync(IEnumerable<Bill> bills, IEnumerable<Vote> votes, IEnumerable<VoteResult> voteResults, IEnumerable<Person> legislators)
+        {
+            var countBillSupportOppose = bills.Select(bill => new BillDTO
+            {
+                id = bill.id,
+                title = bill.title,
+                supporter_count = (from v in votes
+                                   join vs in voteResults on v.id equals vs.vote_id
+                                   join p in legislators on vs.legislator_id equals p.id
+                                   where v.bill_id == bill.id && vs.vote_type == VoteTypeEnumerator.yes
+                                   select p).Count(),
+                opposer_count = (from v in votes
+                                 join vs in voteResults on v.id equals vs.vote_id
+                                 join p in legislators on vs.legislator_id equals p.id
+                                 where v.bill_id == bill.id && vs.vote_type == VoteTypeEnumerator.no
+                                 select p).Count(),
+                primary_sponsor = "Unknown"
+            }).ToList();
+
+            _billRepository.SaveBill(countBillSupportOppose);
+        }
     }
 }

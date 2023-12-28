@@ -8,6 +8,6 @@ namespace QuorumCodingChallenge.Application.Services.BillServices
 {
     public interface IBillService
     {
-        Boolean Result();
+        bool Result();
     }
 }
