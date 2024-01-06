@@ -32,7 +32,7 @@ namespace QuorumCodingChallenge.Application.Services.BillServices
 
             ProcessLegislators(legislators, voteResults);
 
-            ProcessBillsAsync(bills, votes, voteResults, legislators);
+            ProcessBills(bills, votes, voteResults, legislators);
 
             return true;
         }
@@ -50,7 +50,7 @@ namespace QuorumCodingChallenge.Application.Services.BillServices
             _personRepository.SaveLegislator(countLegislatorSupportOpposer);
         }
 
-        private void ProcessBillsAsync(IEnumerable<Bill> bills, IEnumerable<Vote> votes, IEnumerable<VoteResult> voteResults, IEnumerable<Person> legislators)
+        private void ProcessBills(IEnumerable<Bill> bills, IEnumerable<Vote> votes, IEnumerable<VoteResult> voteResults, IEnumerable<Person> legislators)
         {
             var countBillSupportOppose = bills.Select(bill => new BillDTO
             {

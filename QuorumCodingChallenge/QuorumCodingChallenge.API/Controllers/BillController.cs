@@ -11,9 +11,6 @@ namespace QuorumCodingChallenge.Controllers
             _billService = billService;
         }
 
-        /// <summary>
-        /// Consultar pedido Drogatel
-        /// </summary>
         [HttpGet]
         [Route("result")]
         [Produces("application/json")]
